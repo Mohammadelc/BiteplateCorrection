@@ -18,15 +18,20 @@
 %  The toolbox for Marquette EMA-MAE database is distributed under the terms of the GNU General Public License
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function BPRotation(BPfile,velThreshold)
+function BPRotation(BPfile,useWholeBpFile)
 
 if(nargin<2)
-    velThreshold = 25;
+    useWholeBpFile = 0;
+    bpLabelFile = regexprep(BPfile,'biteplate.tsv','bp_label.tsv.txt');
+    if(strcmp(bpLabelFile,BPfile))
+        bpLabelFile = regexprep(BPfile,'biteplate_[0-9].tsv','bp_label.tsv.txt');
+    end
 end
 % load bite-plate record
 [rawdat,header]=loadtsv(BPfile); 
 
 % check the number of sensors
+fs = 400;
 Ncolumn =length(header);
 Nsensors =(Ncolumn-3)/9;
 if rem(Nsensors,1) ~= 0
@@ -41,19 +46,16 @@ for j=1:Nsensors-1
     Swapdat(:,7+9*j)=rawdat(:,6+9*j);
     Swapdat(:,8+9*j)=-rawdat(:,8+9*j);
      
-   %Quaternion Values-- leave Qo alone
-   Swapdat(:,10+9*j)=rawdat(:,11+9*j);
-   Swapdat(:,11+9*j)=rawdat(:,10+9*j);
-   Swapdat(:,12+9*j)=-rawdat(:,12+9*j);
+   %Quaternion Values-- leave alone
 end
 
-if(velThreshold)
-    %Calculate head velocity using the reference sensor position values
-    timestep = median(diff(rawdat(:,1)));
-    refdat = Swapdat(:,6:8);
-    velocity = smooth(sqrt(sum((diff(refdat)/timestep).^2,2)));
-    inds = find(velocity<25);
-    inds = inds+1;
+if(useWholeBpFile == 0)
+    %Use the index files in the database to find still points in BPC
+    fid = fopen(bpLabelFile);
+    timePoints = fscanf(fid, '%f\t%f');
+    fclose(fid);
+    inds = (timePoints(1)*fs+1):(timePoints(2)*fs+1);
+    %Below are the values for the EMAMAE database
     OS_raw = Swapdat(inds,87:89);
     MS_raw = Swapdat(inds,96:98);
 else
@@ -61,12 +63,13 @@ else
     MS_raw=Swapdat(:,96:98);
 end
 
-% calculate the translation value and rotation vetor
+% calculate the translation value and rotation vector
 
 MS=nanmean(MS_raw);
 OS=nanmean(OS_raw);   % translation value
 REF=[0 0 0];
 Ref_t=REF-OS;
+
 MS_t=MS-OS;
 z=cross(MS_t,Ref_t);
 z=z/norm(z);
@@ -78,11 +81,11 @@ MS_tnew=[-1*abs(l2) 0 0];
 Ref_ty=y*abs(l1)/norm(y);
 
 x1=MS_t; x2=MS_tnew; y1=Ref_ty; y2=Ref_tnew;
-
 norm1=cross(x1,x2); norm1=norm1/norm(norm1); norm2=cross(y1,y2); norm2=norm2/norm(norm2);
 f1=cross(norm1,(x1+x2)/2);  f1=f1/norm(f1); f2=cross(norm2,(y1+y2)/2); f2=f2/norm(f2);
 axis=cross(f1,f2);
 axis=axis/norm(axis);
+
 
 r=norm(x1)*sin(acos((dot(x1,axis))/(norm(x1)*norm(axis))));
 theta=asin((sqrt((x1(1)-x2(1))^2+(x1(2)-x2(2))^2+(x1(3)-x2(3))^2)/(2*r)));

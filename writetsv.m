@@ -33,9 +33,9 @@ format = sprintf('%%.%dg%s',10,'\t');
 
 % for tsv files, should be 3 leading columns, then 9 cols for each sensor
 ns=floor(bc/9);  % number of sensors
-if (bc~=(3+9*ns))
-    error('Number of columns not equal to 3 plus 9 * (number of sensors)');
-end
+% if (bc~=(3+9*ns))
+%     error('Number of columns not equal to 3 plus 9 * (number of sensors)');
+% end
 
 % Don't know why first sensor has different precision, but in ND tsv files it does
 finit='%.4f\t%d\t%d\t';   % first 3 columns format string
